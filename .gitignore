@@ -1,0 +1,11 @@
+BUILD/
+mbed/
+.mbed
+ELEC347Coursework.uvguix.ZackB
+ELEC347Coursework.uvoptx
+ELEC347Coursework.uvprojx
+EventRecorderStub.scvd
+GettingStarted.html
+mbed.bld
+mbed_config.h
+DebugConfig/ELEC347Coursework_STM32F303K8Tx.dbgconf
