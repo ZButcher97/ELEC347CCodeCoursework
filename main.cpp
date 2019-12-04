@@ -10,8 +10,8 @@
 
 //function definitions
 void samples();
-float Goertzel(float Coeff);
 void DisplayChar(char data);
+float goetzel(float Coeff);
 
 
 //pin assignments
@@ -24,13 +24,13 @@ BusOut Display(D5, D6, D7, D8, D9, D10, D11);
 Ticker sample;
 	
 //global variables
-float data[205];
+float data[N];
 int flag = 0;
 char KeypadIndexes[4][4] = {
-	{'1', '2', '3', 'e'},
-	{'4', '5', '6', 'e'}, 
-	{'7', '8', '9', 'e'},
-	{'e', 'e', 'e', 'e'}
+	{'1', '2', '3', 'A'},
+	{'4', '5', '6', 'B'}, 
+	{'7', '8', '9', 'C'},
+	{'*', '0', '#', 'D'}
 };
 
 //debug tone values
@@ -46,8 +46,10 @@ int main()
 	//local variables
 	int f[8] = {697, 770, 852, 941, 1209, 1336, 1477, 1633};
 	float Coeff[8];
-	int Max1 = 0;
-	int Max2 = 0;		
+	int MaxVal1 = 0;
+	int MaxIndex1 = 0;
+	int MaxVal2 = 0;
+	int MaxIndex2 = 0;
 	
 	//calculate coefficents - These never change once calculated
 	for (int i = 0; i< 8; i++){
@@ -65,30 +67,40 @@ int main()
 		//if the data isnt ready, sleep
 		if(flag)
 		{
-			while(Button == 1);
-			
 			//data is ready (205 samples collected) process data
 			float mags[8];
-			Max1 = 0;
-			Max2 = 0;
+			float* test;
+			MaxVal1 = 0;
+			MaxVal2 = 0;
 			for(int i = 0; i<8; i++){					
 				//calculate magnitudes
-				mags[i] = Goertzel(Coeff[i]);
-				printf("Mag %d: %f\n\r",i, mags[i]);		
-				//find the 2 largest values
-				if(mags[i] > Max1)
+				mags[i] =  goetzel(Coeff[i]);
+				printf("mag %d: %f\n\r",i ,mags[i] );
+			}
+			for(int i = 0; i < 4; i++)
+			{
+				if(mags[i] > MaxVal1)
 				{
-					Max1 = i;
-				} else if (mags[i] > Max2)
-				{
-					Max2 = i;
+					MaxVal1 = mags[i];
+					MaxIndex1 = i;
 				}
 			}
+			for(int i = 4; i < 8; i++)
+			{
+				if(mags[i] > MaxVal2)
+				{
+					MaxVal2 = mags[i];
+					MaxIndex2 = i;
+				}
+			}
+			printf("Max1: %d Max2: %d\n\r", MaxIndex1, MaxIndex2);
 			//display the relevent character on the 7-segment display and over serial 
-			DisplayChar(KeypadIndexes[Max1][Max2-4]);	
-			printf("Key Pressed: %c\n\r", KeypadIndexes[Max1][Max2-4]) ;
+			printf("Row = %d  Col= %d\n\r", MaxIndex1, MaxIndex2-4);
+			DisplayChar(KeypadIndexes[MaxIndex1][MaxIndex2-4]);	
+			printf("Key Pressed: %c\n\r", KeypadIndexes[MaxIndex1][MaxIndex2-4]) ;
 			//reset flag
 			flag = 0;
+			sample.attach(&samples, 1/Fs);
 		}
 		//sleep until the next sample
 		__WFI();
@@ -122,60 +134,50 @@ void samples()
 		}
 		//set ready flag
 		flag = 1;
+		sample.detach();
 	}
 }
 
-float Goertzel(float Coeff)
+float goetzel(float Coeff)
 {
-	/*
-	int targetfreq = 1000;
+	double magnitude_re;
+	double magnitude_im;
 	
-	int     k,i;
-    float   floatnumSamples;
-    float   omega,sine,cosine,coeff,q0,q1,q2,magnitude,real,imag;
-
-    float   scalingFactor = N / 2.0;
-
-    floatnumSamples = (float) N;
-    k = (int) (0.5 + ((floatnumSamples * targetfreq) / Fs));
-    omega = (2.0 * pi * k) / floatnumSamples;
-    sine = sin(omega);
-    cosine = cos(omega);
-    coeff = 2.0 * cosine;
-    q0=0;
-    q1=0;
-    q2=0;
-
-    for(i=0; i<N; i++)
-    {
-        q0 = coeff * q1 - q2 + data[i];
-        q2 = q1;
-        q1 = q0;
-    }
-
-    // calculate the real and imaginary results
-    // scaling appropriately
-    real = (q1 - q2 * cosine) / scalingFactor;
-    imag = (q2 * sine) / scalingFactor;
-
-    magnitude = sqrtf(real*real + imag*imag);
-    return magnitude;
-*/
+  double Q0_re;
+  double Q0_im;
+  double Q1_re;
+  double Q1_im;
+  double Q2_re;
+  double Q2_im;
 	
-	float q0=0;
-	float q1=0;
-	float q2=0;
+	double result;
+  double Q1_re_tmp;
 	
-	for(int i = 0; i<N; i++)
-	{
-		q2 = q1;
-		q1 = q0;
-		q0 = Coeff * (q1 - q2) + data[i];
-	}
-	float result = (q1*q2) + (q2*q2) - (q1*q2*Coeff);
-	//printf("Coeffs: %f\n\r", result);
-	return result;
+  Q0_re = 0.0;
+  Q0_im = 0.0;
+  Q1_re = 0.0;
+  Q1_im = 0.0;
+  Q2_re = 0.0;
+  Q2_im = 0.0;
 	
+  for (int i = 0; i < N-1; i++) {
+    Q2_re = Q1_re;
+    Q2_im = Q1_im;
+    Q1_re = Q0_re;
+    Q1_im = Q0_im;
+    Q0_re = (Coeff * Q0_re - Q2_re) + data[i];
+    Q0_im = Coeff * Q0_im - Q2_im;
+  }
+
+  Q1_re_tmp = Q1_re * Q2_re - Q1_im * Q2_im;
+  Q0_re = Q1_re * Q2_im + Q1_im * Q2_re;
+  Q0_im = Q2_re * Q2_im;
+	
+  magnitude_re = (Q1_re_tmp + (Q2_re * Q2_re - Q2_im * Q2_im)) - Q1_re_tmp * Coeff;
+  magnitude_im = (Q0_re + (Q0_im + Q0_im)) - Q0_re * Coeff;
+	result = sqrtf((magnitude_im*magnitude_im) + (magnitude_re*magnitude_re));
+	
+  return result;
 }
 
 void DisplayChar(char data)
@@ -233,4 +235,5 @@ void DisplayChar(char data)
 		
 	}
 }
+
 
