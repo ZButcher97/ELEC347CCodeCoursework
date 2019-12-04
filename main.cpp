@@ -8,28 +8,11 @@
 #define N 205
 #define fbin N/Fs
 
-//debug tone values
-int tone1 = 770;
-int tone2 = 1209;
-
-
-static int test = 2;
-
-
 //function definitions
 void samples();
 float Goertzel(float Coeff);
 void DisplayChar(char data);
 
-//global variables
-float data[205];
-int flag = 0;
-
-char KeypadIndexes[3][3] = {
-	{'1', '2', '3'},
-	{'4', '5', '6'}, 
-	{'7', '8', '9'}
-};
 
 //pin assignments
 AnalogIn analog_value(A0);
@@ -37,44 +20,49 @@ DigitalOut led(LED1);
 DigitalIn Button(D12);
 BusOut Display(D5, D6, D7, D8, D9, D10, D11);
 
-
 //define ticker 
-	Ticker sample;
+Ticker sample;
+	
+//global variables
+float data[205];
+int flag = 0;
+char KeypadIndexes[3][3] = {
+	{'1', '2', '3'},
+	{'4', '5', '6'}, 
+	{'7', '8', '9'}
+};
 
-//main code run first
+//debug tone values
+int tone1 = 770;
+int tone2 = 1209;
+static int test = 2;
+
+
+//main code
 int main()
 {
-
-	
 	//local variables
 	int f[8] = {697, 770, 852, 941, 1209, 1336, 1477, 1633};
 	float Coeff[8];
 	int Max1 = 0;
 	int Max2 = 0;		
 	
-	//calculate coefficents
+	//calculate coefficents - These never change once calculated
 	for (int i = 0; i< 8; i++){
 		float k = round(f[i] * fbin);
 		Coeff[i] = 2*cos((2*pi*k)/N);
 		printf("Index: %d Coeff: %f\n\r",i, Coeff[i]);
 	}
 	
-	
+	//start sampling
+	sample.attach(&samples, 1/Fs);
 	
 	//forever loop
 	while(true)
 	{
-		printf("Waiting for button press\n\r");
-		
-		sample.attach(&samples, 1/Fs);
-		
-		while(Button != 0);		
-		printf("button pressed\n\r");
-		
 		//if the data isnt ready, sleep
 		if(flag)
 		{
-			
 			//data is ready (205 samples collected) process data
 			float mags[8];
 			Max1 = 0;
@@ -92,10 +80,14 @@ int main()
 					Max2 = i;
 				}
 			}
-			DisplayChar(KeypadIndexes[Max1][Max2-4]);						
+			//display the relevent character on the 7-segment display and over serial 
+			DisplayChar(KeypadIndexes[Max1][Max2-4]);	
+			printf("Key Pressed: %c", KeypadIndexes[Max1][Max2-4]) ;
 			//reset flag
 			flag = 0;
 		}
+		//sleep until the next sample
+		__WFI();
 	}
 }
 
@@ -107,8 +99,6 @@ void samples()
 	
 	//array index
 	static int index = 0;
-
-	
 	
 	if(index < N)
 	{
@@ -123,13 +113,11 @@ void samples()
 		for(int i = 0; i<=205;i++)
 		{
 			data[i] = tempdata[i];
-			//printf("Signal sample %d: %f\n\r", i, data[i]);
 			//reset index
 			index = 0;
 		}
 		//set ready flag
 		flag = 1;
-		sample.detach();
 	}
 }
 
