@@ -15,9 +15,9 @@ void DisplayChar(char data);
 
 
 //pin assignments
-AnalogIn analog_value(A0);
+AnalogIn analog_value(A3);
 DigitalOut led(LED1);
-DigitalIn Button(D12);
+
 BusOut Display(D5, D6, D7, D8, D9, D10, D11);
 
 //define ticker 
@@ -26,16 +26,18 @@ Ticker sample;
 //global variables
 float data[205];
 int flag = 0;
-char KeypadIndexes[3][3] = {
-	{'1', '2', '3'},
-	{'4', '5', '6'}, 
-	{'7', '8', '9'}
+char KeypadIndexes[4][4] = {
+	{'1', '2', '3', 'e'},
+	{'4', '5', '6', 'e'}, 
+	{'7', '8', '9', 'e'},
+	{'e', 'e', 'e', 'e'}
 };
 
 //debug tone values
 int tone1 = 770;
 int tone2 = 1209;
 static int test = 2;
+DigitalIn Button(D12);
 
 
 //main code
@@ -63,6 +65,8 @@ int main()
 		//if the data isnt ready, sleep
 		if(flag)
 		{
+			while(Button == 1);
+			
 			//data is ready (205 samples collected) process data
 			float mags[8];
 			Max1 = 0;
@@ -82,7 +86,7 @@ int main()
 			}
 			//display the relevent character on the 7-segment display and over serial 
 			DisplayChar(KeypadIndexes[Max1][Max2-4]);	
-			printf("Key Pressed: %c", KeypadIndexes[Max1][Max2-4]) ;
+			printf("Key Pressed: %c\n\r", KeypadIndexes[Max1][Max2-4]) ;
 			//reset flag
 			flag = 0;
 		}
@@ -123,6 +127,7 @@ void samples()
 
 float Goertzel(float Coeff)
 {
+	/*
 	int targetfreq = 1000;
 	
 	int     k,i;
@@ -155,8 +160,8 @@ float Goertzel(float Coeff)
 
     magnitude = sqrtf(real*real + imag*imag);
     return magnitude;
-
-	/*
+*/
+	
 	float q0=0;
 	float q1=0;
 	float q2=0;
@@ -170,7 +175,7 @@ float Goertzel(float Coeff)
 	float result = (q1*q2) + (q2*q2) - (q1*q2*Coeff);
 	//printf("Coeffs: %f\n\r", result);
 	return result;
-	*/
+	
 }
 
 void DisplayChar(char data)
@@ -223,7 +228,7 @@ void DisplayChar(char data)
 		break;
 		
 		default:
-		
+			Display = 0b1111111;
 		break;
 		
 	}
